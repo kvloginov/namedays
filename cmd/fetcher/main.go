@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	sourceType := flag.String("source", "krestilnoe", "The source to fetch namedays from (krestilnoe or calend)")
+	sourceType := flag.String("source", "krestilnoe", "The source to fetch namedays from (krestilnoe, calend, or pravmir)")
 	flag.Parse()
 
 	var fetcher fetch.Fetcher
@@ -24,6 +24,9 @@ func main() {
 	case "calend":
 		fetcher = fetch.NewCalendFetcher()
 		filename = "data/calend_namedays.json"
+	case "pravmir":
+		fetcher = fetch.NewPravmirFetcher()
+		filename = "data/pravmir_namedays.json"
 	default:
 		log.Fatalf("unknown source type: %s", *sourceType)
 	}

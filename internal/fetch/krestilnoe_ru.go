@@ -103,7 +103,7 @@ func extractMonthNumber(monthTitle string) int {
 	return 0
 }
 
-// parseMonthNamedays parses the text with names for a month	
+// parseMonthNamedays parses the text with names for a month
 func parseMonthNamedays(text string, monthNum, year int) []domain.NamedaysData {
 	// Split the text into lines with days
 	dayLines := strings.Split(text, "<br>")
