@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>График именин</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .input-section {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .names-input {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        .button-section {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .chart-container {
+            height: 500px;
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            font-style: italic;
+            color: #666;
+            display: none;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+        }
+        .error-message {
+            color: #d9534f;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>График именин</h1>
+        
+        <div class="input-section">
+            <label for="names">Введите имена (каждое имя с новой строки):</label>
+            <textarea id="names" class="names-input" placeholder="Например:&#10;Иван&#10;Мария&#10;Александр"></textarea>
+        </div>
+        
+        <div class="button-section">
+            <button id="generate-chart">Построить график</button>
+        </div>
+        
+        <div id="loading" class="loading">Загрузка данных...</div>
+        <div id="error-message" class="error-message"></div>
+        
+        <div class="chart-container">
+            <canvas id="namedays-chart"></canvas>
+        </div>
+        
+        <div class="footer">
+            Данные об именинах загружаются из <a href="https://github.com/kvloginov/namedays/blob/main/data/merged_namedays.json" target="_blank">репозитория namedays</a>
+        </div>
+    </div>
+
+    <script>
+        // Load namedays data
+        let namedaysData;
+        let chart;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error-message');
+            
+            loadingEl.style.display = 'block';
+            
+            // Use GitHub Raw URL to load JSON data
+            // This URL allows direct access to the raw file content
+            fetch('https://raw.githubusercontent.com/kvloginov/namedays/main/data/merged_namedays.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Ошибка загрузки данных: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    namedaysData = data;
+                    console.log('Данные о именинах загружены:', namedaysData.length);
+                    loadingEl.style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке данных:', error);
+                    errorEl.textContent = `Не удалось загрузить данные: ${error.message}. Попробуйте обновить страницу.`;
+                    errorEl.style.display = 'block';
+                    loadingEl.style.display = 'none';
+                });
+            
+            document.getElementById('generate-chart').addEventListener('click', generateChart);
+        });
+        
+        function generateChart() {
+            if (!namedaysData) {
+                alert('Данные о именинах еще не загружены. Пожалуйста, подождите или обновите страницу.');
+                return;
+            }
+            
+            const namesInput = document.getElementById('names').value.trim();
+            if (!namesInput) {
+                alert('Пожалуйста, введите хотя бы одно имя.');
+                return;
+            }
+            
+            const names = namesInput.split('\n').map(name => name.trim()).filter(name => name);
+            if (names.length === 0) {
+                alert('Пожалуйста, введите хотя бы одно имя.');
+                return;
+            }
+            
+            const loadingEl = document.getElementById('loading');
+            loadingEl.style.display = 'block';
+            
+            // Get current date
+            const today = new Date();
+            const currentMonth = today.getMonth() + 1; // JS months are 0-based
+            const currentDay = today.getDate();
+            
+            // Create an array of dates from the start of the year to the current date
+            const dates = [];
+            for (let month = 1; month <= 12; month++) {
+                // Determine the number of days in the month
+                const daysInMonth = new Date(today.getFullYear(), month, 0).getDate();
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    // Stop when we reach the current date
+                    if (month > currentMonth || (month === currentMonth && day > currentDay)) {
+                        break;
+                    }
+                    
+                    const dateStr = `${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}`;
+                    dates.push(dateStr);
+                }
+            }
+            
+            // Prepare data for the chart
+            const datasets = [];
+            
+            // For each name, calculate the cumulative sum
+            names.forEach(name => {
+                const nameData = {
+                    label: name,
+                    data: [],
+                    borderColor: getRandomColor(),
+                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                    tension: 0.1
+                };
+                
+                let cumulativeSum = 0;
+                
+                dates.forEach(dateStr => {
+                    // Find if there are namedays for this day
+                    const dayData = namedaysData.find(item => item.date === dateStr);
+                    
+                    if (dayData) {
+                        // Check if the name is in the list of namedays for this day
+                        const nameFound = dayData.names.some(nameInList => {
+                            // Convert names to lowercase for case-insensitive comparison
+                            return nameInList.toLowerCase().includes(name.toLowerCase());
+                        });
+                        
+                        if (nameFound) {
+                            cumulativeSum++;
+                        }
+                    }
+                    
+                    nameData.data.push(cumulativeSum);
+                });
+                
+                datasets.push(nameData);
+            });
+            
+            // Format dates for the X-axis labels
+            const formattedDates = dates.map(dateStr => {
+                const month = parseInt(dateStr.substring(0, 2));
+                const day = parseInt(dateStr.substring(2, 4));
+                return `${day}.${month}`;
+            });
+            
+            // Display only every 15th label to avoid overloading the X-axis
+            const labelIndices = formattedDates.map((_, index) => {
+                // Display every 15th label or the last one
+                if (index % 15 === 0 || index === formattedDates.length - 1) {
+                    return index;
+                }
+                return null;
+            }).filter(index => index !== null);
+            
+            const labels = labelIndices.map(index => formattedDates[index]);
+            
+            // If the chart already exists, destroy it
+            if (chart) {
+                chart.destroy();
+            }
+            
+            // Create a new chart
+            const ctx = document.getElementById('namedays-chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: formattedDates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Накопительный график именин с начала года',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Даты'
+                            },
+                            ticks: {
+                                callback: function(val, index) {
+                                    // Show only certain labels
+                                    return labelIndices.includes(index) ? formattedDates[index] : '';
+                                }
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Количество дней с именинами'
+                            },
+                            min: 0,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+            
+            loadingEl.style.display = 'none';
+        }
+        
+        // Function to generate a random color for the chart lines
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+    </script>
+</body>
+</html> 
