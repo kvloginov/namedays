@@ -34,7 +34,7 @@ func (f *CalendFetcher) FetchAllNamedays() (domain.NamedaysDataList, error) {
 
 	namedays := domain.NamedaysDataList{}
 
-	for day := 0; day < 2; day++ {
+	for day := 0; day < 365; day++ {
 		date := startDate.AddDate(0, 0, day)
 		names, err := f.fetchNamedays(date)
 		if err != nil {
@@ -78,9 +78,4 @@ func (f *CalendFetcher) fetchNamedays(date time.Time) ([]string, error) {
 	})
 
 	return names, nil
-}
-
-// FormatDateKey formats date as MMDD string
-func formatDateKey(date time.Time) string {
-	return fmt.Sprintf("%02d%02d", date.Month(), date.Day())
 }

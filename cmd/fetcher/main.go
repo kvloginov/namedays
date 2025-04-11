@@ -9,17 +9,17 @@ import (
 )
 
 func main() {
-	calendFetcher := fetch.NewCalendFetcher()
+	krestilnoeFetcher := fetch.NewKrestilnoeFetcher()
 
-	calendNamedays, err := calendFetcher.FetchAllNamedays()
+	krestilnoeNamedays, err := krestilnoeFetcher.FetchAllNamedays()
 	if err != nil {
 		log.Fatalf("error fetching namedays: %v", err)
 	}
 
 	// save to file
-	jsonData, err := json.Marshal(calendNamedays)
+	jsonData, err := json.Marshal(krestilnoeNamedays)
 	if err != nil {
 		log.Fatalf("error marshalling namedays: %v", err)
 	}
-	os.WriteFile("data/calend_namedays.json", jsonData, 0644)
+	os.WriteFile("data/krestilnoe_namedays.json", jsonData, 0644)
 }
