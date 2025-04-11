@@ -1,4 +1,4 @@
-package parser
+package fetch
 
 import (
 	"fmt"
@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kvloginov/namedays/internal/domain"
 )
 
-// NamedaysFetcher fetches namedays for a specific date
-type NamedaysFetcher struct {
+// CalendFetcher fetches namedays for a specific date
+type CalendFetcher struct {
 	baseURL string
 	client  *http.Client
 }
 
-// NewNamedaysFetcher creates a new instance of NamedaysFetcher
-func NewNamedaysFetcher() *NamedaysFetcher {
-	return &NamedaysFetcher{
+// NewCalendFetcher creates a new instance of NamedaysFetcher
+func NewCalendFetcher() *CalendFetcher {
+	return &CalendFetcher{
 		baseURL: "https://www.calend.ru/names",
 		client: &http.Client{
 			Timeout: 10 * time.Second,
@@ -25,8 +26,32 @@ func NewNamedaysFetcher() *NamedaysFetcher {
 	}
 }
 
+func (f *CalendFetcher) FetchAllNamedays() (domain.NamedaysDataList, error) {
+	now := time.Now()
+	currentYear := now.Year()
+
+	startDate := time.Date(currentYear, time.January, 1, 0, 0, 0, 0, time.Local)
+
+	namedays := domain.NamedaysDataList{}
+
+	for day := 0; day < 2; day++ {
+		date := startDate.AddDate(0, 0, day)
+		names, err := f.fetchNamedays(date)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching namedays: %w", err)
+		}
+
+		namedays = append(namedays, domain.NamedaysData{
+			Date:  domain.NewDayMonth(date),
+			Names: names,
+		})
+	}
+
+	return namedays, nil
+}
+
 // FetchNamedays fetches namedays for a specific date
-func (f *NamedaysFetcher) FetchNamedays(date time.Time) ([]string, error) {
+func (f *CalendFetcher) fetchNamedays(date time.Time) ([]string, error) {
 	url := fmt.Sprintf("%s/%d-%d-%d/", f.baseURL, date.Year(), date.Month(), date.Day())
 
 	resp, err := f.client.Get(url)
@@ -56,6 +81,6 @@ func (f *NamedaysFetcher) FetchNamedays(date time.Time) ([]string, error) {
 }
 
 // FormatDateKey formats date as MMDD string
-func FormatDateKey(date time.Time) string {
+func formatDateKey(date time.Time) string {
 	return fmt.Sprintf("%02d%02d", date.Month(), date.Day())
 }
