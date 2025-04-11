@@ -8,6 +8,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/kvloginov/namedays/internal/domain"
+	"github.com/schollz/progressbar/v3"
 )
 
 // CalendFetcher fetches namedays for a specific date
@@ -34,6 +35,19 @@ func (f *CalendFetcher) FetchAllNamedays() (domain.NamedaysDataList, error) {
 
 	namedays := domain.NamedaysDataList{}
 
+	bar := progressbar.NewOptions(365,
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetWidth(50),
+		progressbar.OptionSetDescription("Loading namedays from Calend.ru"),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "[green]=[reset]",
+			SaucerHead:    "[green]>[reset]",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}))
+
 	for day := 0; day < 365; day++ {
 		date := startDate.AddDate(0, 0, day)
 		names, err := f.fetchNamedays(date)
@@ -45,7 +59,12 @@ func (f *CalendFetcher) FetchAllNamedays() (domain.NamedaysDataList, error) {
 			Date:  domain.NewDayMonth(date),
 			Names: names,
 		})
+
+		_ = bar.Add(1)
 	}
+
+	_ = bar.Finish()
+	fmt.Println("Namedays loaded from Calend.ru")
 
 	return namedays, nil
 }
