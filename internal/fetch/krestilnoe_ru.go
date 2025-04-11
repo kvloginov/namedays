@@ -45,21 +45,26 @@ func (f *KrestilnoeFetcher) FetchAllNamedays() (domain.NamedaysDataList, error) 
 	namedays := domain.NamedaysDataList{}
 	currentYear := time.Now().Year()
 
-	// Find all sections by months
-	doc.Find(".click-down").Each(func(i int, monthSection *goquery.Selection) {
-		// Get the month title
-		monthTitle := monthSection.Find("h2.item").Text()
-		monthNum := extractMonthNumber(monthTitle)
+	// Find all paragraphs with calendar data
+	// Data is inside <p> tags with formatting through <br>
+	doc.Find("p").Each(func(i int, paragraph *goquery.Selection) {
+		// Get HTML content of the paragraph
+		html, _ := paragraph.Html()
+		// Check if the paragraph contains calendar data (first two characters - number and space)
+		if len(html) > 2 && regexp.MustCompile(`^\d+\s`).MatchString(html) {
+			// Find the first month in the text to determine which month this block belongs to
+			monthMatch := regexp.MustCompile(`\d+\s+([^\s:]+):`).FindStringSubmatch(html)
+			if len(monthMatch) > 1 {
+				monthName := monthMatch[1]
+				monthNum := extractMonthNumber(monthName)
 
-		if monthNum == 0 {
-			return // Skip if we couldn't determine the month
+				if monthNum > 0 {
+					// Parse dates and names for this month
+					monthNamedays := parseMonthNamedays(html, monthNum, currentYear)
+					namedays = append(namedays, monthNamedays...)
+				}
+			}
 		}
-
-		// Get the text with names
-		nameText := monthSection.Find(".item-text p").Text()
-
-		// Parse days and names
-		namedays = append(namedays, parseMonthNamedays(nameText, monthNum, currentYear)...)
 	})
 
 	return namedays, nil
@@ -105,17 +110,26 @@ func extractMonthNumber(monthTitle string) int {
 
 // parseMonthNamedays parses the text with names for a month
 func parseMonthNamedays(text string, monthNum, year int) []domain.NamedaysData {
-	// Split the text into lines with days
-	dayLines := strings.Split(text, "<br>")
+	// HTML contains <br> between days, which we need to correctly process
+	// First, clean the text from extra formatting and normalize spaces
+	text = strings.TrimSpace(text)
+
+	// Split the text into days by <br> tags
+	dayEntries := strings.Split(text, "<br/>")
 
 	result := []domain.NamedaysData{}
 
-	for _, line := range dayLines {
-		// Regular expression to extract days and names
+	for _, entry := range dayEntries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		// Regular expression to extract the day and names
 		// Format: "1 января: Илья, Вонифатий, ..."
 		re := regexp.MustCompile(`^(\d+)\s+[^:]+:\s+(.+)$`)
 
-		matches := re.FindStringSubmatch(strings.TrimSpace(line))
+		matches := re.FindStringSubmatch(entry)
 		if len(matches) < 3 {
 			continue
 		}

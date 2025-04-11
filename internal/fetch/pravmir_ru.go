@@ -335,6 +335,7 @@ func parseNames(namesStr string) []string {
 	var cleanNames []string
 	for _, name := range namesSplit {
 		name = strings.TrimSpace(name)
+		name = strings.ReplaceAll(name, ".", "")
 
 		// Filter out empty strings and some common phrases
 		if name != "" &&
