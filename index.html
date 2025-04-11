@@ -95,6 +95,27 @@
             word-break: break-all;
             display: none;
         }
+        .nameday-ranking {
+            margin-top: 30px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .nameday-ranking th, .nameday-ranking td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .nameday-ranking th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .nameday-ranking tr:hover {
+            background-color: #f5f5f5;
+        }
+        .today-nameday {
+            color: #4CAF50;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -117,6 +138,21 @@
         
         <div class="chart-container">
             <canvas id="namedays-chart"></canvas>
+        </div>
+        
+        <div class="ranking-container">
+            <h2>Рейтинг именин</h2>
+            <table id="nameday-ranking" class="nameday-ranking">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Количество именин</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Рейтинг будет заполнен динамически -->
+                </tbody>
+            </table>
         </div>
         
         <div class="footer">
@@ -260,6 +296,9 @@
             const currentMonth = today.getMonth() + 1; // JS months are 0-based
             const currentDay = today.getDate();
             
+            // Format current date as string for comparison
+            const currentDateStr = `${currentMonth.toString().padStart(2, '0')}${currentDay.toString().padStart(2, '0')}`;
+            
             // Create an array of dates from the start of the year to the current date
             const dates = [];
             for (let month = 1; month <= 12; month++) {
@@ -279,6 +318,7 @@
             
             // Prepare data for the chart
             const datasets = [];
+            const rankingData = []; // For storing nameday counts for ranking
             
             // For each name, calculate the cumulative sum
             names.forEach(name => {
@@ -291,6 +331,7 @@
                 };
                 
                 let cumulativeSum = 0;
+                let isTodayNameday = false;
                 
                 dates.forEach(dateStr => {
                     // Find if there are namedays for this day
@@ -305,6 +346,11 @@
                         
                         if (nameFound) {
                             cumulativeSum++;
+                            
+                            // Check if today is nameday for this name
+                            if (dateStr === currentDateStr) {
+                                isTodayNameday = true;
+                            }
                         }
                     }
                     
@@ -312,6 +358,39 @@
                 });
                 
                 datasets.push(nameData);
+                
+                // Add data for ranking table
+                rankingData.push({
+                    name: name,
+                    count: cumulativeSum,
+                    isTodayNameday: isTodayNameday
+                });
+            });
+            
+            // Sort ranking data by count (descending)
+            rankingData.sort((a, b) => b.count - a.count);
+            
+            // Update ranking table
+            const rankingTableBody = document.querySelector('#nameday-ranking tbody');
+            rankingTableBody.innerHTML = '';
+            
+            rankingData.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = item.name;
+                
+                const countCell = document.createElement('td');
+                if (item.isTodayNameday) {
+                    countCell.textContent = `${item.count} (Сегодня +1)`;
+                    countCell.classList.add('today-nameday');
+                } else {
+                    countCell.textContent = item.count;
+                }
+                
+                row.appendChild(nameCell);
+                row.appendChild(countCell);
+                rankingTableBody.appendChild(row);
             });
             
             // Format dates for the X-axis labels
