@@ -24,6 +24,14 @@
             text-align: center;
             color: #333;
         }
+        .today-namedays {
+            text-align: left;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+        .today-namedays-list {
+            font-size: 20px;
+        }
         .input-section {
             margin-bottom: 20px;
             display: flex;
@@ -120,8 +128,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>График именин</h1>
+        <h2>Именины сегодня</h2>
+        <div id="today-namedays" class="today-namedays">    
+            <div id="today-namedays-list" class="today-namedays-list">Загрузка...</div>
+        </div>
         
+        <h2>График именин</h2>
         <div class="input-section">
             <label for="names">Введите имена (каждое имя с новой строки):</label>
             <textarea id="names" class="names-input" placeholder="Например:&#10;Иван&#10;Мария&#10;Александр"></textarea>
@@ -186,6 +198,9 @@
                     console.log('Данные о именинах загружены:', namedaysData.length);
                     loadingEl.style.display = 'none';
                     
+                    // Display today's namedays
+                    displayTodayNamedays();
+                    
                     // Check if URL has names parameter
                     loadNamesFromUrl();
                 })
@@ -199,6 +214,32 @@
             document.getElementById('generate-chart').addEventListener('click', generateChart);
             document.getElementById('share-button').addEventListener('click', shareNames);
         });
+        
+        // Function to display today's namedays
+        function displayTodayNamedays() {
+            if (!namedaysData) {
+                return;
+            }
+            
+            // Get current date
+            const today = new Date();
+            const currentMonth = today.getMonth() + 1; // JS months are 0-based
+            const currentDay = today.getDate();
+            
+            // Format current date as string for comparison
+            const currentDateStr = `${currentMonth.toString().padStart(2, '0')}${currentDay.toString().padStart(2, '0')}`;
+            
+            // Find namedays for today
+            const todayData = namedaysData.find(item => item.date === currentDateStr);
+            
+            const todayNamedaysEl = document.getElementById('today-namedays-list');
+            
+            if (todayData && todayData.names.length > 0) {
+                todayNamedaysEl.textContent = todayData.names.join(', ') + '.';
+            } else {
+                todayNamedaysEl.textContent = 'Нет данных об именинах на сегодня.';
+            }
+        }
         
         // Function to encode names in base64
         function encodeNames(namesText) {
