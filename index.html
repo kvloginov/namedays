@@ -243,13 +243,13 @@
         
         // Function to encode names in base64
         function encodeNames(namesText) {
-            return btoa(encodeURIComponent(namesText));
+            return btoa(unescape(encodeURIComponent(namesText)));
         }
         
         // Function to decode names from base64
         function decodeNames(encodedNames) {
             try {
-                return decodeURIComponent(atob(encodedNames));
+                return decodeURIComponent(escape(atob(encodedNames)));
             } catch (e) {
                 console.error('Ошибка при декодировании имён:', e);
                 return '';
