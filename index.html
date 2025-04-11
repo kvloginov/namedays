@@ -43,6 +43,7 @@
             display: flex;
             justify-content: center;
             margin-bottom: 20px;
+            gap: 10px;
         }
         button {
             padding: 10px 20px;
@@ -56,6 +57,12 @@
         }
         button:hover {
             background-color: #45a049;
+        }
+        .share-button {
+            background-color: #2196F3;
+        }
+        .share-button:hover {
+            background-color: #0b7dda;
         }
         .chart-container {
             height: 500px;
@@ -80,6 +87,14 @@
             margin-top: 20px;
             display: none;
         }
+        .share-link {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            word-break: break-all;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -93,8 +108,10 @@
         
         <div class="button-section">
             <button id="generate-chart">Построить график</button>
+            <button id="share-button" class="share-button">Поделиться</button>
         </div>
         
+        <div id="share-link" class="share-link"></div>
         <div id="loading" class="loading">Загрузка данных...</div>
         <div id="error-message" class="error-message"></div>
         
@@ -115,6 +132,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const loadingEl = document.getElementById('loading');
             const errorEl = document.getElementById('error-message');
+            const shareLinkEl = document.getElementById('share-link');
             
             loadingEl.style.display = 'block';
             
@@ -131,6 +149,9 @@
                     namedaysData = data;
                     console.log('Данные о именинах загружены:', namedaysData.length);
                     loadingEl.style.display = 'none';
+                    
+                    // Check if URL has names parameter
+                    loadNamesFromUrl();
                 })
                 .catch(error => {
                     console.error('Ошибка при загрузке данных:', error);
@@ -140,7 +161,72 @@
                 });
             
             document.getElementById('generate-chart').addEventListener('click', generateChart);
+            document.getElementById('share-button').addEventListener('click', shareNames);
         });
+        
+        // Function to encode names in base64
+        function encodeNames(namesText) {
+            return btoa(encodeURIComponent(namesText));
+        }
+        
+        // Function to decode names from base64
+        function decodeNames(encodedNames) {
+            try {
+                return decodeURIComponent(atob(encodedNames));
+            } catch (e) {
+                console.error('Ошибка при декодировании имён:', e);
+                return '';
+            }
+        }
+        
+        // Function to share names via URL
+        function shareNames() {
+            const namesInput = document.getElementById('names').value.trim();
+            if (!namesInput) {
+                alert('Пожалуйста, введите хотя бы одно имя.');
+                return;
+            }
+            
+            // Encode names to base64
+            const encodedNames = encodeNames(namesInput);
+            
+            // Create URL with names parameter
+            const url = new URL(window.location.href);
+            url.searchParams.set('names', encodedNames);
+            
+            // Update browser URL without reloading page
+            window.history.pushState({}, '', url);
+            
+            // Show shareable link
+            const shareLinkEl = document.getElementById('share-link');
+            shareLinkEl.textContent = url.href;
+            shareLinkEl.style.display = 'block';
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(url.href)
+                .then(() => {
+                    alert('Ссылка скопирована в буфер обмена!');
+                })
+                .catch(err => {
+                    console.error('Не удалось скопировать ссылку:', err);
+                });
+        }
+        
+        // Function to load names from URL and generate chart
+        function loadNamesFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedNames = urlParams.get('names');
+            
+            if (encodedNames) {
+                const namesInput = document.getElementById('names');
+                namesInput.value = decodeNames(encodedNames);
+                
+                // Generate chart if data is loaded
+                if (namedaysData) {
+                    generateChart();
+                }
+            }
+        }
         
         function generateChart() {
             if (!namedaysData) {
@@ -159,6 +245,12 @@
                 alert('Пожалуйста, введите хотя бы одно имя.');
                 return;
             }
+            
+            // Update URL with current names
+            const encodedNames = encodeNames(namesInput);
+            const url = new URL(window.location.href);
+            url.searchParams.set('names', encodedNames);
+            window.history.pushState({}, '', url);
             
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'block';
