@@ -211,6 +211,11 @@
             <button type="button" id="add-person-btn" style="margin-top: 10px;">+ Добавить человека</button>
         </div>
         
+        <div class="input-section" style="flex-direction: row; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <input type="checkbox" id="include-relatives-checkbox" checked style="margin-right: 8px;">
+            <label for="include-relatives-checkbox">Учитывать родственников</label>
+        </div>
+        
         <div class="button-section">
             <button id="generate-chart">Построить график</button>
             <button id="share-button" class="share-button">Поделиться</button>
@@ -231,6 +236,7 @@
                     <tr>
                         <th>Имя</th>
                         <th>Количество именин</th>
+                        <th>Получено от родственников</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -433,7 +439,13 @@
             });
             
             if (peopleData.length === 0) return '';
-            return btoa(unescape(encodeURIComponent(JSON.stringify(peopleData))));
+            // Return a JSON string of an object containing peopleData and the checkbox state
+            const includeRelatives = document.getElementById('include-relatives-checkbox').checked;
+            const dataToEncode = {
+                people: peopleData,
+                includeRelatives: includeRelatives
+            };
+            return btoa(unescape(encodeURIComponent(JSON.stringify(dataToEncode))));
         }
         
         // Function to decode names from base64
@@ -442,10 +454,12 @@
             // For now, it's a placeholder for the old logic
             try {
                 const jsonString = decodeURIComponent(escape(atob(encodedNames)));
-                return JSON.parse(jsonString);
+                const decodedData = JSON.parse(jsonString);
+                // Return an object with people and includeRelatives properties
+                return decodedData;
             } catch (e) {
                 console.error('Ошибка при декодировании имён:', e);
-                return []; // Return an empty array or handle error appropriately
+                return { people: [], includeRelatives: true }; // Default to true if error
             }
         }
         
@@ -488,13 +502,13 @@
         // Function to load names from URL and generate chart
         function loadNamesFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
-            const encodedNames = urlParams.get('names');
+            const encodedData = urlParams.get('names'); // The 'names' param now holds an object string
             
-            if (encodedNames) {
-                // const namesInput = document.getElementById('names'); // Old element
-                // namesInput.value = decodeNames(encodedNames); // Old logic
+            if (encodedData) {
+                const decodedDataObject = decodeNames(encodedData); // New logic, returns an object
+                const peopleData = decodedDataObject.people;
+                const includeRelatives = decodedDataObject.includeRelatives;
 
-                const peopleData = decodeNames(encodedNames); // New logic
                 if (peopleData && Array.isArray(peopleData)) {
                     // Clear any existing cards first
                     document.getElementById('people-input-area').innerHTML = '';
@@ -504,6 +518,8 @@
                         addPersonCard(person);
                     });
                 }
+                // Set checkbox state
+                document.getElementById('include-relatives-checkbox').checked = includeRelatives;
                 
                 // Generate chart if data is loaded
                 if (namedaysData) {
@@ -562,9 +578,9 @@
             }
             
             // Update URL with current names
-            const encodedCurrentNames = encodeNames(); // encodeNames now reads from the new structure
+            const encodedCurrentData = encodeNames(); // encodeNames now reads from the new structure and checkbox
             const url = new URL(window.location.href);
-            url.searchParams.set('names', encodedCurrentNames);
+            url.searchParams.set('names', encodedCurrentData); // 'names' now stores the combined object
             window.history.pushState({}, '', url);
             
             const loadingEl = document.getElementById('loading');
@@ -612,10 +628,13 @@
                 };
                 
                 let cumulativeSum = 0;
+                let relativesScoreSum = 0; // Initialize relatives score sum
                 let isTodayNameday = false; // For the main person
+                const includeRelativesChecked = document.getElementById('include-relatives-checkbox').checked;
                 
                 dates.forEach(dateStr => {
                     let dailyScore = 0;
+                    let dailyRelativesScore = 0; // Initialize daily relatives score
                     // Find if there are namedays for this day
                     const dayData = namedaysData.find(item => item.date === dateStr);
                     
@@ -630,26 +649,31 @@
                             }
                         }
 
-                        // Check for parents' namedays (0.5 points each)
-                        person.parents.forEach(parentName => {
-                            const parentNameFound = dayData.names.some(nameInList =>
-                                nameInList.toLowerCase().includes(parentName.toLowerCase()));
-                            if (parentNameFound) {
-                                dailyScore += 0.5;
-                            }
-                        });
+                        // Check for parents' namedays (0.5 points each) if checkbox is checked
+                        if (includeRelativesChecked) {
+                            person.parents.forEach(parentName => {
+                                const parentNameFound = dayData.names.some(nameInList =>
+                                    nameInList.toLowerCase().includes(parentName.toLowerCase()));
+                                if (parentNameFound) {
+                                    dailyScore += 0.5;
+                                    dailyRelativesScore += 0.5;
+                                }
+                            });
 
-                        // Check for grandparents' namedays (0.25 points each)
-                        person.grandparents.forEach(grandparentName => {
-                            const grandparentNameFound = dayData.names.some(nameInList =>
-                                nameInList.toLowerCase().includes(grandparentName.toLowerCase()));
-                            if (grandparentNameFound) {
-                                dailyScore += 0.25;
-                            }
-                        });
+                            // Check for grandparents' namedays (0.25 points each) if checkbox is checked
+                            person.grandparents.forEach(grandparentName => {
+                                const grandparentNameFound = dayData.names.some(nameInList =>
+                                    nameInList.toLowerCase().includes(grandparentName.toLowerCase()));
+                                if (grandparentNameFound) {
+                                    dailyScore += 0.25;
+                                    dailyRelativesScore += 0.25;
+                                }
+                            });
+                        }
                     }
                     
                     cumulativeSum += dailyScore;
+                    relativesScoreSum += dailyRelativesScore; // Accumulate relatives score
                     nameData.data.push(cumulativeSum);
                 });
                 
@@ -659,6 +683,7 @@
                 rankingData.push({
                     name: name, // Main person's name
                     count: cumulativeSum,
+                    relativesScore: relativesScoreSum, // Add relatives score to ranking data
                     isTodayNameday: isTodayNameday // Based on main person's nameday
                 });
             });
@@ -678,14 +703,20 @@
                 
                 const countCell = document.createElement('td');
                 if (item.isTodayNameday) {
-                    countCell.textContent = `${item.count} (Сегодня +1)`;
+                    countCell.textContent = `${item.count} (Сегодня +${item.count - (rankingData.find(r => r.name === item.name && r.isTodayNameday === false)?.count || item.count - 1)})`; // more precise today's gain
                     countCell.classList.add('today-nameday');
                 } else {
                     countCell.textContent = item.count;
                 }
+
+                const relativesScoreCell = document.createElement('td');
+                // Get the checkbox state directly here as it's outside generateChart's direct scope for this part
+                const isRelativesIncluded = document.getElementById('include-relatives-checkbox').checked;
+                relativesScoreCell.textContent = isRelativesIncluded ? item.relativesScore : 0;
                 
                 row.appendChild(nameCell);
                 row.appendChild(countCell);
+                row.appendChild(relativesScoreCell); // Add new cell to the row
                 rankingTableBody.appendChild(row);
             });
             
@@ -726,7 +757,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Накопительный график именин с начала года',
+                            text: 'Накопительный график именин с начала года (с учетом родственников)',
                             font: {
                                 size: 16
                             }
