@@ -755,19 +755,40 @@
             const formattedDates = dates.map(dateStr => {
                 const month = parseInt(dateStr.substring(0, 2));
                 const day = parseInt(dateStr.substring(2, 4));
-                return `${day}.${month}`;
+                // Format as DD.MM with leading zeros
+                return `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}`;
             });
             
-            // Display only every 15th label to avoid overloading the X-axis
-            const labelIndices = formattedDates.map((_, index) => {
-                // Display every 15th label or the last one
-                if (index % 15 === 0 || index === formattedDates.length - 1) {
-                    return index;
+            // Dynamically calculate tick frequency for X-axis labels
+            const numDates = formattedDates.length;
+            const targetTickCount = numDates > 60 ? 15 : (numDates > 20 ? 10 : 5); // Aim for 5-15 ticks
+            let step = 1;
+            if (numDates > targetTickCount && targetTickCount > 0) {
+                step = Math.ceil(numDates / targetTickCount);
+            }
+            if (numDates === 1) step = 1; // Ensure single date point is shown
+
+            const labelIndices = [];
+            if (numDates > 0) {
+                for (let i = 0; i < numDates; i++) {
+                    if (i % step === 0) {
+                        labelIndices.push(i);
+                    }
                 }
-                return null;
-            }).filter(index => index !== null);
-            
-            const labels = labelIndices.map(index => formattedDates[index]);
+                // Ensure the last label is always included if it wasn't captured by the step
+                // and if there's more than one label and the last one isn't already in.
+                if (numDates > 1 && (labelIndices.length === 0 || labelIndices[labelIndices.length - 1] !== numDates - 1)) {
+                    if (labelIndices.length > 0 && labelIndices[labelIndices.length - 1] < numDates - 1) {
+                         labelIndices.push(numDates - 1); // Add if not the very last and there's space
+                    } else if (labelIndices.length === 0) {
+                         labelIndices.push(numDates-1); // If no labels yet (e.g. step too large), add last
+                    }
+                }
+                 // Special case for a single data point
+                if (numDates === 1 && labelIndices.length === 0) {
+                    labelIndices.push(0);
+                }
+            }
             
             // If the chart already exists, destroy it
             if (chart) {
@@ -809,9 +830,16 @@
                                 text: 'Даты'
                             },
                             ticks: {
-                                callback: function(val, index) {
-                                    // Show only certain labels
-                                    return labelIndices.includes(index) ? formattedDates[index] : '';
+                                callback: function(tickValue, index, ticks) {
+                                    // index is the index of the current tick in the array of all ticks.
+                                    // We want to show formattedDates[index] if this index is in labelIndices.
+                                    if (labelIndices.includes(index)) {
+                                        // Ensure that formattedDates[index] exists to avoid errors.
+                                        if (index < formattedDates.length) {
+                                            return formattedDates[index]; // Return the date string.
+                                        }
+                                    }
+                                    return ''; // Return an empty string for ticks that should not be displayed.
                                 }
                             }
                         },
