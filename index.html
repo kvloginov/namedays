@@ -655,7 +655,11 @@
                     data: [],
                     borderColor: getRandomColor(),
                     backgroundColor: 'rgba(0, 0, 0, 0)',
-                    tension: 0.1
+                    tension: 0.4,
+                    pointRadius: 0, // Remove points
+                    pointHoverRadius: 0, // Points don't appear and don't show on hover
+                    borderWidth: 2, // Standard line thickness
+                    hoverBorderWidth: 4 // Line thickness on hover
                 };
                 
                 let cumulativeSum = 0;
