@@ -316,7 +316,7 @@
         let personIdCounter = 0;
 
         // Function to add a new person card to the input area
-        function addPersonCard(personData = { name: '', parents: [], grandparents: [] }) {
+        function addPersonCard(personData = { name: '', surnameInitial: '', parents: [], grandparents: [] }) {
             personIdCounter++;
             const personCardId = `person-card-${personIdCounter}`;
 
@@ -328,6 +328,8 @@
                 '<h4>Человек <span class="person-number">' + personIdCounter + '</span></h4>' +
                 '<label for="person-name-' + personIdCounter + '">Имя:</label>' +
                 '<input type="text" id="person-name-' + personIdCounter + '" class="person-name-input" placeholder="Имя человека" value="' + personData.name + '">' +
+                '<label for="person-surname-initial-' + personIdCounter + '" style="margin-top: 5px;">Инициал (опц.):</label>' +
+                '<input type="text" id="person-surname-initial-' + personIdCounter + '" class="person-surname-initial-input" placeholder="П." value="' + (personData.surnameInitial || '') + '" style="width: calc(50% - 22px);">' +
 
                 '<div class="relatives-section">' +
                 '    <h5>Родители:</h5>' +
@@ -438,9 +440,13 @@
                 const personNameInput = card.querySelector('.person-name-input');
                 const personName = personNameInput ? personNameInput.value.trim() : '';
 
+                const surnameInitialInput = card.querySelector('.person-surname-initial-input');
+                const surnameInitial = surnameInitialInput ? surnameInitialInput.value.trim() : '';
+
                 if (personName) {
                     const person = {
                         name: personName,
+                        surnameInitial: surnameInitial, 
                         parents: [],
                         grandparents: []
                     };
@@ -562,18 +568,6 @@
                 alert('Данные о именинах еще не загружены. Пожалуйста, подождите или обновите страницу.');
                 return;
             }
-            
-            // const namesInput = document.getElementById('names').value.trim(); // Old way
-            // if (!namesInput) { // Old way
-            //     alert('Пожалуйста, введите хотя бы одно имя.'); // Old way
-            //     return; // Old way
-            // }
-            
-            // const names = namesInput.split('\\n').map(name => name.trim()).filter(name => name); // Old way
-            // if (names.length === 0) { // Old way
-            //     alert('Пожалуйста, введите хотя бы одно имя.'); // Old way
-            //     return; // Old way
-            // }
 
             const peopleInputArea = document.getElementById('people-input-area');
             const peopleCards = peopleInputArea.querySelectorAll('.person-card');
@@ -583,9 +577,13 @@
                 const personNameInput = card.querySelector('.person-name-input');
                 const personName = personNameInput ? personNameInput.value.trim() : '';
 
+                const surnameInitialInput = card.querySelector('.person-surname-initial-input');
+                const surnameInitial = surnameInitialInput ? surnameInitialInput.value.trim() : '';
+
                 if (personName) {
                     const personData = {
                         name: personName,
+                        surnameInitial: surnameInitial, 
                         parents: [],
                         grandparents: []
                     };
@@ -647,9 +645,13 @@
             // For each name, calculate the cumulative sum
             // names.forEach(name => { // Old loop
             peopleList.forEach(person => { // New loop
-                const name = person.name; // Main person's name for the label
+                let displayName = person.name;
+                if (person.surnameInitial && person.surnameInitial.trim() !== '') {
+                    displayName += ' ' + person.surnameInitial.trim(); // Display as entered, only trim whitespace
+                }
+                const name = displayName; // Use this for label and ranking
                 const nameData = {
-                    label: name, // Use person's name for the dataset label
+                    label: name, // Use person's combined name for the dataset label
                     data: [],
                     borderColor: getRandomColor(),
                     backgroundColor: 'rgba(0, 0, 0, 0)',
@@ -670,7 +672,7 @@
                     if (dayData) {
                         // Check for main person's nameday (1 point)
                         const mainNameFound = dayData.names.some(nameInList => 
-                            nameInList.toLowerCase().includes(name.toLowerCase()));
+                            nameInList.toLowerCase().includes(person.name.toLowerCase()));
                         if (mainNameFound) {
                             dailyScore += 1;
                             if (dateStr === currentDateStr) {
@@ -710,7 +712,7 @@
                 
                 // Add data for ranking table
                 rankingData.push({
-                    name: name, // Main person's name
+                    name: name, // Main person's combined name
                     count: cumulativeSum,
                     relativesScore: relativesScoreSum, // Add relatives score to ranking data
                     isTodayNameday: isTodayNameday // Based on main person's nameday
