@@ -806,6 +806,10 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'dataset',
+                        intersect: false,
+                    },
                     plugins: {
                         title: {
                             display: true,
@@ -816,7 +820,52 @@
                         },
                         tooltip: {
                             mode: 'index',
-                            intersect: false
+                            intersect: false,
+                            bodyFont: function(tooltipItem) {
+                                const chart = tooltipItem.chart;
+                                const activeElements = chart.getActiveElements();
+                                let baseFont = Object.assign({}, chart.options.font); // Start with chart's default font
+
+                                // Ensure baseFont has some defaults if chart.options.font is minimal
+                                baseFont.size = baseFont.size || Chart.defaults.font.size;
+                                baseFont.family = baseFont.family || Chart.defaults.font.family;
+                                // baseFont.style = baseFont.style || Chart.defaults.font.style; // keep default style
+                                baseFont.weight = baseFont.weight || Chart.defaults.font.weight; // keep default weight
+
+                                if (activeElements.length > 0) {
+                                    // If any element is active, make the body font bold
+                                    baseFont.weight = 'bold';
+                                    // Optionally, slightly increase size
+                                    // baseFont.size = (baseFont.size || Chart.defaults.font.size) * 1.05; 
+                                }
+                                return baseFont;
+                            },
+                            callbacks: {
+                                labelTextColor: function(tooltipItem) {
+                                    const chart = tooltipItem.chart;
+                                    // Get active elements based on the chart's interaction state
+                                    const activeElements = chart.getActiveElements();
+
+                                    if (activeElements.length > 0) {
+                                        // Assuming interaction.mode = 'dataset' makes the first active element
+                                        // the one corresponding to the hovered dataset.
+                                        const hoveredDatasetIndex = activeElements[0].datasetIndex;
+
+                                        if (tooltipItem.datasetIndex === hoveredDatasetIndex) {
+                                            // This is the hovered dataset, use its border color
+                                            if (chart.data.datasets[tooltipItem.datasetIndex]) {
+                                                return chart.data.datasets[tooltipItem.datasetIndex].borderColor;
+                                            }
+                                            return '#000000'; // Fallback for highlighted item
+                                        } else {
+                                            // This is not the primarily hovered dataset, use a dimmer color
+                                            return '#aaaaaa'; 
+                                        }
+                                    }
+                                    // Default if no active elements or issues
+                                    return '#333333'; // A slightly more visible default than pure #000
+                                }
+                            }
                         },
                         legend: {
                             position: 'top',
@@ -831,15 +880,12 @@
                             },
                             ticks: {
                                 callback: function(tickValue, index, ticks) {
-                                    // index is the index of the current tick in the array of all ticks.
-                                    // We want to show formattedDates[index] if this index is in labelIndices.
                                     if (labelIndices.includes(index)) {
-                                        // Ensure that formattedDates[index] exists to avoid errors.
                                         if (index < formattedDates.length) {
-                                            return formattedDates[index]; // Return the date string.
+                                            return formattedDates[index];
                                         }
                                     }
-                                    return ''; // Return an empty string for ticks that should not be displayed.
+                                    return '';
                                 }
                             }
                         },
@@ -851,9 +897,7 @@
                             },
                             min: 0,
                             ticks: {
-                                // Allow decimal ticks if sums are not integers
                                 callback: function(value) { if (value % 1 === 0 || value % 0.5 === 0 || value % 0.25 === 0) { return value; } else { return undefined; } }
-                                // stepSize: 1 // Might need to adjust or remove if scores are decimal
                             }
                         }
                     }
