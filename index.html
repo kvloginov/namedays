@@ -205,10 +205,13 @@
         
         <h2>График именин</h2>
         <div class="input-section">
-            <div id="people-input-area">
-                <!-- Сюда будут добавляться карточки для каждого человека -->
+            <button type="button" id="toggle-people-editor-btn" style="margin-bottom: 10px; background-color: #f0f0f0; color: #333; border: 1px solid #ccc;">Скрыть форму добавления людей</button>
+            <div id="people-editor-collapsible" style="display: block;"> 
+                <div id="people-input-area">
+                    <!-- Сюда будут добавляться карточки для каждого человека -->
+                </div>
+                <button type="button" id="add-person-btn" style="margin-top: 10px;">+ Добавить человека</button>
             </div>
-            <button type="button" id="add-person-btn" style="margin-top: 10px;">+ Добавить человека</button>
         </div>
         
         <div class="input-section" style="flex-direction: row; align-items: center; justify-content: center; margin-bottom: 10px;">
@@ -281,6 +284,22 @@
                     
                     // Check if URL has names parameter
                     loadNamesFromUrl();
+
+                    // Setup for collapsibletoggle button for people editor
+                    const togglePeopleEditorBtn = document.getElementById('toggle-people-editor-btn');
+                    const peopleEditorCollapsible = document.getElementById('people-editor-collapsible');
+
+                    if (togglePeopleEditorBtn && peopleEditorCollapsible) {
+                        togglePeopleEditorBtn.addEventListener('click', () => {
+                            if (peopleEditorCollapsible.style.display === 'none') {
+                                peopleEditorCollapsible.style.display = 'block';
+                                togglePeopleEditorBtn.textContent = 'Скрыть форму добавления людей';
+                            } else {
+                                peopleEditorCollapsible.style.display = 'none';
+                                togglePeopleEditorBtn.textContent = 'Показать/редактировать список людей';
+                            }
+                        });
+                    }
                 })
                 .catch(error => {
                     console.error('Ошибка при загрузке данных:', error);
@@ -517,6 +536,16 @@
                     peopleData.forEach(person => {
                         addPersonCard(person);
                     });
+
+                    // If people were loaded from URL, collapse the editor by default
+                    if (peopleData.length > 0) {
+                        const peopleEditorCollapsible = document.getElementById('people-editor-collapsible');
+                        const togglePeopleEditorBtn = document.getElementById('toggle-people-editor-btn');
+                        if (peopleEditorCollapsible && togglePeopleEditorBtn) {
+                            peopleEditorCollapsible.style.display = 'none';
+                            togglePeopleEditorBtn.textContent = 'Показать/редактировать список людей';
+                        }
+                    }
                 }
                 // Set checkbox state
                 document.getElementById('include-relatives-checkbox').checked = includeRelatives;
