@@ -124,6 +124,76 @@
             color: #4CAF50;
             font-weight: bold;
         }
+        .person-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .person-card h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .person-card label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .person-card input[type="text"] {
+            width: calc(100% - 22px); /* Adjust for padding and border */
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .relatives-section {
+            margin-left: 20px;
+            margin-top: 10px;
+            padding-left: 15px;
+            border-left: 2px solid #eee;
+        }
+        .relatives-section h5 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .relative-input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .relative-input-group input[type="text"] {
+            flex-grow: 1;
+            margin-bottom: 0; /* Override person-card input margin */
+            margin-right: 5px;
+        }
+        .remove-btn {
+            padding: 5px 8px;
+            background-color: #d9534f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .remove-btn:hover {
+            background-color: #c9302c;
+        }
+        .add-relative-btn {
+            padding: 6px 10px;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .add-relative-btn:hover {
+            background-color: #4cae4c;
+        }
     </style>
 </head>
 <body>
@@ -135,8 +205,18 @@
         
         <h2>График именин</h2>
         <div class="input-section">
-            <label for="names">Введите имена (каждое имя с новой строки):</label>
-            <textarea id="names" class="names-input" placeholder="Например:&#10;Иван&#10;Мария&#10;Александр"></textarea>
+            <button type="button" id="toggle-people-editor-btn" style="margin-bottom: 10px; background-color: #f0f0f0; color: #333; border: 1px solid #ccc;">Скрыть форму добавления людей</button>
+            <div id="people-editor-collapsible" style="display: block;"> 
+                <div id="people-input-area">
+                    <!-- Сюда будут добавляться карточки для каждого человека -->
+                </div>
+                <button type="button" id="add-person-btn" style="margin-top: 10px;">+ Добавить человека</button>
+            </div>
+        </div>
+        
+        <div class="input-section" style="flex-direction: row; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <input type="checkbox" id="include-relatives-checkbox" checked style="margin-right: 8px;">
+            <label for="include-relatives-checkbox">Учитывать родственников</label>
         </div>
         
         <div class="button-section">
@@ -159,6 +239,7 @@
                     <tr>
                         <th>Имя</th>
                         <th>Количество именин</th>
+                        <th>Получено от родственников</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -203,6 +284,22 @@
                     
                     // Check if URL has names parameter
                     loadNamesFromUrl();
+
+                    // Setup for collapsibletoggle button for people editor
+                    const togglePeopleEditorBtn = document.getElementById('toggle-people-editor-btn');
+                    const peopleEditorCollapsible = document.getElementById('people-editor-collapsible');
+
+                    if (togglePeopleEditorBtn && peopleEditorCollapsible) {
+                        togglePeopleEditorBtn.addEventListener('click', () => {
+                            if (peopleEditorCollapsible.style.display === 'none') {
+                                peopleEditorCollapsible.style.display = 'block';
+                                togglePeopleEditorBtn.textContent = 'Скрыть форму добавления людей';
+                            } else {
+                                peopleEditorCollapsible.style.display = 'none';
+                                togglePeopleEditorBtn.textContent = 'Показать/редактировать список людей';
+                            }
+                        });
+                    }
                 })
                 .catch(error => {
                     console.error('Ошибка при загрузке данных:', error);
@@ -214,6 +311,94 @@
             document.getElementById('generate-chart').addEventListener('click', generateChart);
             document.getElementById('share-button').addEventListener('click', shareNames);
         });
+        
+        // Counter for unique IDs for person cards
+        let personIdCounter = 0;
+
+        // Function to add a new person card to the input area
+        function addPersonCard(personData = { name: '', surnameInitial: '', parents: [], grandparents: [] }) {
+            personIdCounter++;
+            const personCardId = `person-card-${personIdCounter}`;
+
+            const card = document.createElement('div');
+            card.classList.add('person-card');
+            card.id = personCardId;
+
+            card.innerHTML = 
+                '<h4>Человек <span class="person-number">' + personIdCounter + '</span></h4>' +
+                '<label for="person-name-' + personIdCounter + '">Имя:</label>' +
+                '<input type="text" id="person-name-' + personIdCounter + '" class="person-name-input" placeholder="Имя человека" value="' + personData.name + '">' +
+                '<label for="person-surname-initial-' + personIdCounter + '" style="margin-top: 5px;">Инициал (опц.):</label>' +
+                '<input type="text" id="person-surname-initial-' + personIdCounter + '" class="person-surname-initial-input" placeholder="П." value="' + (personData.surnameInitial || '') + '" style="width: calc(50% - 22px);">' +
+
+                '<div class="relatives-section">' +
+                '    <h5>Родители:</h5>' +
+                '    <div id="parents-list-' + personIdCounter + '" class="relatives-list"></div>' +
+                '    <button type="button" class="add-relative-btn add-parent-btn" data-person-id="' + personIdCounter + '">+ Добавить родителя</button>' +
+                '</div>' +
+
+                '<div class="relatives-section">' +
+                '    <h5>Бабушки и дедушки:</h5>' +
+                '    <div id="grandparents-list-' + personIdCounter + '" class="relatives-list"></div>' +
+                '    <button type="button" class="add-relative-btn add-grandparent-btn" data-person-id="' + personIdCounter + '">+ Добавить бабушку/дедушку</button>' +
+                '</div>' +
+                '<button type="button" class="remove-btn remove-person-btn" style="margin-top: 10px;" data-person-id="' + personIdCounter + '">Удалить этого человека</button>';
+
+            document.getElementById('people-input-area').appendChild(card);
+
+            // Add existing parents
+            personData.parents.forEach(parentName => addRelativeInput(personIdCounter, 'parent', parentName));
+            // Add existing grandparents
+            personData.grandparents.forEach(grandparentName => addRelativeInput(personIdCounter, 'grandparent', grandparentName));
+
+
+            // Event listeners for new buttons
+            card.querySelector('.add-parent-btn').addEventListener('click', (e) => {
+                addRelativeInput(e.target.dataset.personId, 'parent');
+            });
+            card.querySelector('.add-grandparent-btn').addEventListener('click', (e) => {
+                addRelativeInput(e.target.dataset.personId, 'grandparent');
+            });
+            card.querySelector('.remove-person-btn').addEventListener('click', (e) => {
+                removePersonCard(e.target.dataset.personId);
+            });
+        }
+
+        // Function to add a relative input field (parent or grandparent)
+        function addRelativeInput(personId, type, relativeName = '') {
+            const listId = type === 'parent' ? `parents-list-${personId}` : `grandparents-list-${personId}`;
+            const listElement = document.getElementById(listId);
+
+            const relativeInputGroup = document.createElement('div');
+            relativeInputGroup.classList.add('relative-input-group');
+            
+            const placeholder = type === 'parent' ? 'Имя родителя' : 'Имя бабушки/дедушки';
+            const inputClass = type === 'parent' ? 'parent-name-input' : 'grandparent-name-input';
+
+            relativeInputGroup.innerHTML = 
+                '<input type="text" class="' + inputClass + '" placeholder="' + placeholder + '" value="' + relativeName + '">' +
+                '<button type="button" class="remove-btn remove-relative-btn">-</button>';
+            listElement.appendChild(relativeInputGroup);
+
+            relativeInputGroup.querySelector('.remove-relative-btn').addEventListener('click', () => {
+                relativeInputGroup.remove();
+            });
+        }
+
+        // Function to remove a person card
+        function removePersonCard(personId) {
+            const card = document.getElementById(`person-card-${personId}`);
+            if (card) {
+                card.remove();
+                // Renumber remaining cards (optional, for UI consistency)
+                const remainingCards = document.querySelectorAll('.person-card');
+                remainingCards.forEach((rcard, index) => {
+                    rcard.querySelector('.person-number').textContent = index + 1;
+                });
+            }
+        }
+        
+        document.getElementById('add-person-btn').addEventListener('click', () => addPersonCard());
         
         // Function to display today's namedays
         function displayTodayNamedays() {
@@ -243,29 +428,79 @@
         
         // Function to encode names in base64
         function encodeNames(namesText) {
-            return btoa(unescape(encodeURIComponent(namesText)));
+            // This function will need to be updated to handle the new data structure
+            // For now, it's a placeholder for the old logic
+            const peopleInputArea = document.getElementById('people-input-area');
+            if (!peopleInputArea) return ''; // Should not happen
+
+            const peopleCards = peopleInputArea.querySelectorAll('.person-card');
+            const peopleData = [];
+
+            peopleCards.forEach(card => {
+                const personNameInput = card.querySelector('.person-name-input');
+                const personName = personNameInput ? personNameInput.value.trim() : '';
+
+                const surnameInitialInput = card.querySelector('.person-surname-initial-input');
+                const surnameInitial = surnameInitialInput ? surnameInitialInput.value.trim() : '';
+
+                if (personName) {
+                    const person = {
+                        name: personName,
+                        surnameInitial: surnameInitial, 
+                        parents: [],
+                        grandparents: []
+                    };
+
+                    card.querySelectorAll('.parent-name-input').forEach(input => {
+                        const parentName = input.value.trim();
+                        if (parentName) person.parents.push(parentName);
+                    });
+                    card.querySelectorAll('.grandparent-name-input').forEach(input => {
+                        const grandparentName = input.value.trim();
+                        if (grandparentName) person.grandparents.push(grandparentName);
+                    });
+                    peopleData.push(person);
+                }
+            });
+            
+            if (peopleData.length === 0) return '';
+            // Return a JSON string of an object containing peopleData and the checkbox state
+            const includeRelatives = document.getElementById('include-relatives-checkbox').checked;
+            const dataToEncode = {
+                people: peopleData,
+                includeRelatives: includeRelatives
+            };
+            return btoa(unescape(encodeURIComponent(JSON.stringify(dataToEncode))));
         }
         
         // Function to decode names from base64
         function decodeNames(encodedNames) {
+            // This function will need to be updated to handle the new data structure
+            // For now, it's a placeholder for the old logic
             try {
-                return decodeURIComponent(escape(atob(encodedNames)));
+                const jsonString = decodeURIComponent(escape(atob(encodedNames)));
+                const decodedData = JSON.parse(jsonString);
+                // Return an object with people and includeRelatives properties
+                return decodedData;
             } catch (e) {
                 console.error('Ошибка при декодировании имён:', e);
-                return '';
+                return { people: [], includeRelatives: true }; // Default to true if error
             }
         }
         
         // Function to share names via URL
         function shareNames() {
-            const namesInput = document.getElementById('names').value.trim();
-            if (!namesInput) {
-                alert('Пожалуйста, введите хотя бы одно имя.');
+            // const namesInput = document.getElementById('names').value.trim(); // Old way
+            // if (!namesInput) { // Old way
+            //     alert('Пожалуйста, введите хотя бы одно имя.'); // Old way
+            //     return; // Old way
+            // }
+            
+            const encodedNames = encodeNames(); // New function call without args
+            if (!encodedNames) {
+                alert('Пожалуйста, добавьте хотя бы одного человека и введите его имя.');
                 return;
             }
-            
-            // Encode names to base64
-            const encodedNames = encodeNames(namesInput);
             
             // Create URL with names parameter
             const url = new URL(window.location.href);
@@ -292,11 +527,34 @@
         // Function to load names from URL and generate chart
         function loadNamesFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
-            const encodedNames = urlParams.get('names');
+            const encodedData = urlParams.get('names'); // The 'names' param now holds an object string
             
-            if (encodedNames) {
-                const namesInput = document.getElementById('names');
-                namesInput.value = decodeNames(encodedNames);
+            if (encodedData) {
+                const decodedDataObject = decodeNames(encodedData); // New logic, returns an object
+                const peopleData = decodedDataObject.people;
+                const includeRelatives = decodedDataObject.includeRelatives;
+
+                if (peopleData && Array.isArray(peopleData)) {
+                    // Clear any existing cards first
+                    document.getElementById('people-input-area').innerHTML = '';
+                    personIdCounter = 0; // Reset counter
+
+                    peopleData.forEach(person => {
+                        addPersonCard(person);
+                    });
+
+                    // If people were loaded from URL, collapse the editor by default
+                    if (peopleData.length > 0) {
+                        const peopleEditorCollapsible = document.getElementById('people-editor-collapsible');
+                        const togglePeopleEditorBtn = document.getElementById('toggle-people-editor-btn');
+                        if (peopleEditorCollapsible && togglePeopleEditorBtn) {
+                            peopleEditorCollapsible.style.display = 'none';
+                            togglePeopleEditorBtn.textContent = 'Показать/редактировать список людей';
+                        }
+                    }
+                }
+                // Set checkbox state
+                document.getElementById('include-relatives-checkbox').checked = includeRelatives;
                 
                 // Generate chart if data is loaded
                 if (namedaysData) {
@@ -310,23 +568,46 @@
                 alert('Данные о именинах еще не загружены. Пожалуйста, подождите или обновите страницу.');
                 return;
             }
-            
-            const namesInput = document.getElementById('names').value.trim();
-            if (!namesInput) {
-                alert('Пожалуйста, введите хотя бы одно имя.');
-                return;
-            }
-            
-            const names = namesInput.split('\n').map(name => name.trim()).filter(name => name);
-            if (names.length === 0) {
-                alert('Пожалуйста, введите хотя бы одно имя.');
+
+            const peopleInputArea = document.getElementById('people-input-area');
+            const peopleCards = peopleInputArea.querySelectorAll('.person-card');
+            const peopleList = [];
+
+            peopleCards.forEach(card => {
+                const personNameInput = card.querySelector('.person-name-input');
+                const personName = personNameInput ? personNameInput.value.trim() : '';
+
+                const surnameInitialInput = card.querySelector('.person-surname-initial-input');
+                const surnameInitial = surnameInitialInput ? surnameInitialInput.value.trim() : '';
+
+                if (personName) {
+                    const personData = {
+                        name: personName,
+                        surnameInitial: surnameInitial, 
+                        parents: [],
+                        grandparents: []
+                    };
+                    card.querySelectorAll('.parent-name-input').forEach(input => {
+                        const parentName = input.value.trim();
+                        if (parentName) personData.parents.push(parentName);
+                    });
+                    card.querySelectorAll('.grandparent-name-input').forEach(input => {
+                        const grandparentName = input.value.trim();
+                        if (grandparentName) personData.grandparents.push(grandparentName);
+                    });
+                    peopleList.push(personData);
+                }
+            });
+
+            if (peopleList.length === 0) {
+                alert('Пожалуйста, добавьте хотя бы одного человека и введите его имя.');
                 return;
             }
             
             // Update URL with current names
-            const encodedNames = encodeNames(namesInput);
+            const encodedCurrentData = encodeNames(); // encodeNames now reads from the new structure and checkbox
             const url = new URL(window.location.href);
-            url.searchParams.set('names', encodedNames);
+            url.searchParams.set('names', encodedCurrentData); // 'names' now stores the combined object
             window.history.pushState({}, '', url);
             
             const loadingEl = document.getElementById('loading');
@@ -362,9 +643,15 @@
             const rankingData = []; // For storing nameday counts for ranking
             
             // For each name, calculate the cumulative sum
-            names.forEach(name => {
+            // names.forEach(name => { // Old loop
+            peopleList.forEach(person => { // New loop
+                let displayName = person.name;
+                if (person.surnameInitial && person.surnameInitial.trim() !== '') {
+                    displayName += ' ' + person.surnameInitial.trim(); // Display as entered, only trim whitespace
+                }
+                const name = displayName; // Use this for label and ranking
                 const nameData = {
-                    label: name,
+                    label: name, // Use person's combined name for the dataset label
                     data: [],
                     borderColor: getRandomColor(),
                     backgroundColor: 'rgba(0, 0, 0, 0)',
@@ -372,29 +659,52 @@
                 };
                 
                 let cumulativeSum = 0;
-                let isTodayNameday = false;
+                let relativesScoreSum = 0; // Initialize relatives score sum
+                let isTodayNameday = false; // For the main person
+                const includeRelativesChecked = document.getElementById('include-relatives-checkbox').checked;
                 
                 dates.forEach(dateStr => {
+                    let dailyScore = 0;
+                    let dailyRelativesScore = 0; // Initialize daily relatives score
                     // Find if there are namedays for this day
                     const dayData = namedaysData.find(item => item.date === dateStr);
                     
                     if (dayData) {
-                        // Check if the name is in the list of namedays for this day
-                        const nameFound = dayData.names.some(nameInList => {
-                            // Convert names to lowercase for case-insensitive comparison
-                            return nameInList.toLowerCase().includes(name.toLowerCase());
-                        });
-                        
-                        if (nameFound) {
-                            cumulativeSum++;
-                            
-                            // Check if today is nameday for this name
+                        // Check for main person's nameday (1 point)
+                        const mainNameFound = dayData.names.some(nameInList => 
+                            nameInList.toLowerCase().includes(person.name.toLowerCase()));
+                        if (mainNameFound) {
+                            dailyScore += 1;
                             if (dateStr === currentDateStr) {
                                 isTodayNameday = true;
                             }
                         }
+
+                        // Check for parents' namedays (0.5 points each) if checkbox is checked
+                        if (includeRelativesChecked) {
+                            person.parents.forEach(parentName => {
+                                const parentNameFound = dayData.names.some(nameInList =>
+                                    nameInList.toLowerCase().includes(parentName.toLowerCase()));
+                                if (parentNameFound) {
+                                    dailyScore += 0.5;
+                                    dailyRelativesScore += 0.5;
+                                }
+                            });
+
+                            // Check for grandparents' namedays (0.25 points each) if checkbox is checked
+                            person.grandparents.forEach(grandparentName => {
+                                const grandparentNameFound = dayData.names.some(nameInList =>
+                                    nameInList.toLowerCase().includes(grandparentName.toLowerCase()));
+                                if (grandparentNameFound) {
+                                    dailyScore += 0.25;
+                                    dailyRelativesScore += 0.25;
+                                }
+                            });
+                        }
                     }
                     
+                    cumulativeSum += dailyScore;
+                    relativesScoreSum += dailyRelativesScore; // Accumulate relatives score
                     nameData.data.push(cumulativeSum);
                 });
                 
@@ -402,9 +712,10 @@
                 
                 // Add data for ranking table
                 rankingData.push({
-                    name: name,
+                    name: name, // Main person's combined name
                     count: cumulativeSum,
-                    isTodayNameday: isTodayNameday
+                    relativesScore: relativesScoreSum, // Add relatives score to ranking data
+                    isTodayNameday: isTodayNameday // Based on main person's nameday
                 });
             });
             
@@ -423,14 +734,20 @@
                 
                 const countCell = document.createElement('td');
                 if (item.isTodayNameday) {
-                    countCell.textContent = `${item.count} (Сегодня +1)`;
+                    countCell.textContent = `${item.count} (Сегодня +${item.count - (rankingData.find(r => r.name === item.name && r.isTodayNameday === false)?.count || item.count - 1)})`; // more precise today's gain
                     countCell.classList.add('today-nameday');
                 } else {
                     countCell.textContent = item.count;
                 }
+
+                const relativesScoreCell = document.createElement('td');
+                // Get the checkbox state directly here as it's outside generateChart's direct scope for this part
+                const isRelativesIncluded = document.getElementById('include-relatives-checkbox').checked;
+                relativesScoreCell.textContent = isRelativesIncluded ? item.relativesScore : 0;
                 
                 row.appendChild(nameCell);
                 row.appendChild(countCell);
+                row.appendChild(relativesScoreCell); // Add new cell to the row
                 rankingTableBody.appendChild(row);
             });
             
@@ -438,19 +755,40 @@
             const formattedDates = dates.map(dateStr => {
                 const month = parseInt(dateStr.substring(0, 2));
                 const day = parseInt(dateStr.substring(2, 4));
-                return `${day}.${month}`;
+                // Format as DD.MM with leading zeros
+                return `${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}`;
             });
             
-            // Display only every 15th label to avoid overloading the X-axis
-            const labelIndices = formattedDates.map((_, index) => {
-                // Display every 15th label or the last one
-                if (index % 15 === 0 || index === formattedDates.length - 1) {
-                    return index;
+            // Dynamically calculate tick frequency for X-axis labels
+            const numDates = formattedDates.length;
+            const targetTickCount = numDates > 60 ? 15 : (numDates > 20 ? 10 : 5); // Aim for 5-15 ticks
+            let step = 1;
+            if (numDates > targetTickCount && targetTickCount > 0) {
+                step = Math.ceil(numDates / targetTickCount);
+            }
+            if (numDates === 1) step = 1; // Ensure single date point is shown
+
+            const labelIndices = [];
+            if (numDates > 0) {
+                for (let i = 0; i < numDates; i++) {
+                    if (i % step === 0) {
+                        labelIndices.push(i);
+                    }
                 }
-                return null;
-            }).filter(index => index !== null);
-            
-            const labels = labelIndices.map(index => formattedDates[index]);
+                // Ensure the last label is always included if it wasn't captured by the step
+                // and if there's more than one label and the last one isn't already in.
+                if (numDates > 1 && (labelIndices.length === 0 || labelIndices[labelIndices.length - 1] !== numDates - 1)) {
+                    if (labelIndices.length > 0 && labelIndices[labelIndices.length - 1] < numDates - 1) {
+                         labelIndices.push(numDates - 1); // Add if not the very last and there's space
+                    } else if (labelIndices.length === 0) {
+                         labelIndices.push(numDates-1); // If no labels yet (e.g. step too large), add last
+                    }
+                }
+                 // Special case for a single data point
+                if (numDates === 1 && labelIndices.length === 0) {
+                    labelIndices.push(0);
+                }
+            }
             
             // If the chart already exists, destroy it
             if (chart) {
@@ -468,17 +806,66 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'dataset',
+                        intersect: false,
+                    },
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Накопительный график именин с начала года',
+                            text: 'Накопительный график именин с начала года (с учетом родственников)',
                             font: {
                                 size: 16
                             }
                         },
                         tooltip: {
                             mode: 'index',
-                            intersect: false
+                            intersect: false,
+                            bodyFont: function(tooltipItem) {
+                                const chart = tooltipItem.chart;
+                                const activeElements = chart.getActiveElements();
+                                let baseFont = Object.assign({}, chart.options.font); // Start with chart's default font
+
+                                // Ensure baseFont has some defaults if chart.options.font is minimal
+                                baseFont.size = baseFont.size || Chart.defaults.font.size;
+                                baseFont.family = baseFont.family || Chart.defaults.font.family;
+                                // baseFont.style = baseFont.style || Chart.defaults.font.style; // keep default style
+                                baseFont.weight = baseFont.weight || Chart.defaults.font.weight; // keep default weight
+
+                                if (activeElements.length > 0) {
+                                    // If any element is active, make the body font bold
+                                    baseFont.weight = 'bold';
+                                    // Optionally, slightly increase size
+                                    // baseFont.size = (baseFont.size || Chart.defaults.font.size) * 1.05; 
+                                }
+                                return baseFont;
+                            },
+                            callbacks: {
+                                labelTextColor: function(tooltipItem) {
+                                    const chart = tooltipItem.chart;
+                                    // Get active elements based on the chart's interaction state
+                                    const activeElements = chart.getActiveElements();
+
+                                    if (activeElements.length > 0) {
+                                        // Assuming interaction.mode = 'dataset' makes the first active element
+                                        // the one corresponding to the hovered dataset.
+                                        const hoveredDatasetIndex = activeElements[0].datasetIndex;
+
+                                        if (tooltipItem.datasetIndex === hoveredDatasetIndex) {
+                                            // This is the hovered dataset, use its border color
+                                            if (chart.data.datasets[tooltipItem.datasetIndex]) {
+                                                return chart.data.datasets[tooltipItem.datasetIndex].borderColor;
+                                            }
+                                            return '#000000'; // Fallback for highlighted item
+                                        } else {
+                                            // This is not the primarily hovered dataset, use a dimmer color
+                                            return '#aaaaaa'; 
+                                        }
+                                    }
+                                    // Default if no active elements or issues
+                                    return '#333333'; // A slightly more visible default than pure #000
+                                }
+                            }
                         },
                         legend: {
                             position: 'top',
@@ -492,9 +879,13 @@
                                 text: 'Даты'
                             },
                             ticks: {
-                                callback: function(val, index) {
-                                    // Show only certain labels
-                                    return labelIndices.includes(index) ? formattedDates[index] : '';
+                                callback: function(tickValue, index, ticks) {
+                                    if (labelIndices.includes(index)) {
+                                        if (index < formattedDates.length) {
+                                            return formattedDates[index];
+                                        }
+                                    }
+                                    return '';
                                 }
                             }
                         },
@@ -502,11 +893,11 @@
                             display: true,
                             title: {
                                 display: true,
-                                text: 'Количество дней с именинами'
+                                text: 'Количество дней с именинами (с учетом родственников)'
                             },
                             min: 0,
                             ticks: {
-                                stepSize: 1
+                                callback: function(value) { if (value % 1 === 0 || value % 0.5 === 0 || value % 0.25 === 0) { return value; } else { return undefined; } }
                             }
                         }
                     }
