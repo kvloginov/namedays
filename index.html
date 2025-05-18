@@ -12,6 +12,8 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
+        /* Стиль для увеличения кликабельной области в легенде */
+        
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -75,6 +77,42 @@
         .chart-container {
             height: 500px;
             margin-top: 20px;
+        }
+        
+        /* Styles for custom legend */
+        .custom-legend-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 15px;
+            padding: 10px 0;
+        }
+        .custom-legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 15px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .custom-legend-item:hover {
+            background-color: #f0f0f0;
+        }
+        .custom-legend-color {
+            width: 60px;
+            height: 4px;
+            margin-right: 8px;
+        }
+        .custom-legend-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .custom-legend-item.hidden .custom-legend-color {
+            opacity: 0.4;
+        }
+        .custom-legend-item.hidden .custom-legend-label {
+            opacity: 0.6;
         }
         .loading {
             text-align: center;
@@ -230,6 +268,10 @@
         
         <div class="chart-container">
             <canvas id="namedays-chart"></canvas>
+        </div>
+        
+        <div id="custom-legend" class="custom-legend-container">
+            <!-- Custom legend will be added here dynamically -->
         </div>
         
         <div class="ranking-container">
@@ -835,6 +877,10 @@
                             text: 'Накопительный график именин с начала года (с учетом родственников)',
                             font: {
                                 size: 16
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 10
                             }
                         },
                         tooltip: {
@@ -887,22 +933,7 @@
                             }
                         },
                         legend: {
-                            position: 'top',
-                            labels: {
-                                usePointStyle: false,
-                                boxWidth: 40,
-                                boxHeight: 3,
-                                generateLabels: function(chart) {
-                                    const originalLabels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
-                                    originalLabels.forEach(label => {
-                                        // Use border color for the line, same as in the chart
-                                        label.fillStyle = label.strokeStyle;
-                                        // Make legend line appear the same as in the chart
-                                        label.lineWidth = 2;
-                                    });
-                                    return originalLabels;
-                                }
-                            }
+                            display: false // Disable built-in legend, we'll use our custom one
                         }
                     },
                     scales: {
@@ -939,6 +970,67 @@
             });
             
             loadingEl.style.display = 'none';
+            
+            // Create custom legend
+            createCustomLegend(chart);
+        }
+        
+        // Function to create custom legend
+        function createCustomLegend(chart) {
+            const legendContainer = document.getElementById('custom-legend');
+            legendContainer.innerHTML = ''; // Clear container before updating
+            
+            const datasets = chart.data.datasets;
+            
+            datasets.forEach((dataset, index) => {
+                const legendItem = document.createElement('div');
+                legendItem.classList.add('custom-legend-item');
+                if (dataset.hidden) {
+                    legendItem.classList.add('hidden');
+                }
+                
+                const colorBox = document.createElement('div');
+                colorBox.classList.add('custom-legend-color');
+                colorBox.style.backgroundColor = dataset.borderColor;
+                
+                const labelText = document.createElement('div');
+                labelText.classList.add('custom-legend-label');
+                labelText.textContent = dataset.label;
+                
+                legendItem.appendChild(colorBox);
+                legendItem.appendChild(labelText);
+                
+                // Add click handler
+                legendItem.addEventListener('click', (e) => {
+                    const isShiftPressed = e.shiftKey;
+                    
+                    if (isShiftPressed) {
+                        // Shift key pressed: Standard behavior (toggle one dataset)
+                        datasets[index].hidden = !datasets[index].hidden;
+                    } else {
+                                                            // Check if this chart is the only one currently visible
+                                    const isCurrentlyOnlyVisible = datasets.every((dataset, i) => 
+                                        i === index ? !dataset.hidden : dataset.hidden);
+                                    
+                                    if (isCurrentlyOnlyVisible) {
+                                        // If this is a second click on the same item, show all charts
+                                        datasets.forEach(dataset => {
+                                            dataset.hidden = false;
+                                        });
+                                    } else {
+                                        // First click - show only the selected chart
+                                        datasets.forEach((dataset, i) => {
+                                            dataset.hidden = i !== index;
+                                        });
+                        }
+                    }
+                    
+                    chart.update();
+                    createCustomLegend(chart); // Update legend view after changes
+                });
+                
+                legendContainer.appendChild(legendItem);
+            });
         }
         
         // Function to generate a deterministic color based on name hash
