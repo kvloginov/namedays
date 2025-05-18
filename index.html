@@ -12,6 +12,8 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
+        /* Стиль для увеличения кликабельной области в легенде */
+        
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -75,6 +77,42 @@
         .chart-container {
             height: 500px;
             margin-top: 20px;
+        }
+        
+        /* Styles for custom legend */
+        .custom-legend-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 15px;
+            padding: 10px 0;
+        }
+        .custom-legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 15px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .custom-legend-item:hover {
+            background-color: #f0f0f0;
+        }
+        .custom-legend-color {
+            width: 60px;
+            height: 4px;
+            margin-right: 8px;
+        }
+        .custom-legend-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .custom-legend-item.hidden .custom-legend-color {
+            opacity: 0.4;
+        }
+        .custom-legend-item.hidden .custom-legend-label {
+            opacity: 0.6;
         }
         .loading {
             text-align: center;
@@ -230,6 +268,10 @@
         
         <div class="chart-container">
             <canvas id="namedays-chart"></canvas>
+        </div>
+        
+        <div id="custom-legend" class="custom-legend-container">
+            <!-- Custom legend will be added here dynamically -->
         </div>
         
         <div class="ranking-container">
@@ -653,19 +695,21 @@
                 const nameData = {
                     label: name, // Use person's combined name for the dataset label
                     data: [],
-                    borderColor: getRandomColor(),
-                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                    borderColor: getColorFromName(name),
+                    backgroundColor: getColorFromName(name),
                     tension: 0.4,
                     pointRadius: 0, // Remove points
                     pointHoverRadius: 0, // Points don't appear and don't show on hover
                     borderWidth: 2, // Standard line thickness
-                    hoverBorderWidth: 4 // Line thickness on hover
+                    hoverBorderWidth: 4, // Line thickness on hover
+                    fill: false // Don't fill area under the line
                 };
                 
                 let cumulativeSum = 0;
                 let relativesScoreSum = 0; // Initialize relatives score sum
                 let isTodayNameday = false; // For the main person
                 const includeRelativesChecked = document.getElementById('include-relatives-checkbox').checked;
+                let todayRelativesScore = 0; // Initialize today's relatives score
                 
                 dates.forEach(dateStr => {
                     let dailyScore = 0;
@@ -710,6 +754,11 @@
                     cumulativeSum += dailyScore;
                     relativesScoreSum += dailyRelativesScore; // Accumulate relatives score
                     nameData.data.push(cumulativeSum);
+
+                    // Store today's relatives score if this is today
+                    if (dateStr === currentDateStr) {
+                        todayRelativesScore = dailyRelativesScore;
+                    }
                 });
                 
                 datasets.push(nameData);
@@ -719,7 +768,8 @@
                     name: name, // Main person's combined name
                     count: cumulativeSum,
                     relativesScore: relativesScoreSum, // Add relatives score to ranking data
-                    isTodayNameday: isTodayNameday // Based on main person's nameday
+                    isTodayNameday: isTodayNameday, // Based on main person's nameday
+                    todayRelativesScore: todayRelativesScore // Score from relatives today
                 });
             });
             
@@ -737,8 +787,10 @@
                 nameCell.textContent = item.name;
                 
                 const countCell = document.createElement('td');
-                if (item.isTodayNameday) {
-                    countCell.textContent = `${item.count} (Сегодня +${item.count - (rankingData.find(r => r.name === item.name && r.isTodayNameday === false)?.count || item.count - 1)})`; // more precise today's gain
+                if (item.isTodayNameday || item.todayRelativesScore > 0) {
+                    // Calculate total today's gain including relatives
+                    const todayGain = (item.isTodayNameday ? 1 : 0) + item.todayRelativesScore;
+                    countCell.textContent = `${item.count} (Сегодня +${todayGain})`;
                     countCell.classList.add('today-nameday');
                 } else {
                     countCell.textContent = item.count;
@@ -747,7 +799,12 @@
                 const relativesScoreCell = document.createElement('td');
                 // Get the checkbox state directly here as it's outside generateChart's direct scope for this part
                 const isRelativesIncluded = document.getElementById('include-relatives-checkbox').checked;
-                relativesScoreCell.textContent = isRelativesIncluded ? item.relativesScore : 0;
+                if (isRelativesIncluded && item.todayRelativesScore > 0) {
+                    relativesScoreCell.textContent = `${item.relativesScore} (Сегодня +${item.todayRelativesScore})`;
+                    relativesScoreCell.classList.add('today-nameday');
+                } else {
+                    relativesScoreCell.textContent = isRelativesIncluded ? item.relativesScore : 0;
+                }
                 
                 row.appendChild(nameCell);
                 row.appendChild(countCell);
@@ -820,6 +877,10 @@
                             text: 'Накопительный график именин с начала года (с учетом родственников)',
                             font: {
                                 size: 16
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 10
                             }
                         },
                         tooltip: {
@@ -872,7 +933,7 @@
                             }
                         },
                         legend: {
-                            position: 'top',
+                            display: false // Disable built-in legend, we'll use our custom one
                         }
                     },
                     scales: {
@@ -909,16 +970,85 @@
             });
             
             loadingEl.style.display = 'none';
+            
+            // Create custom legend
+            createCustomLegend(chart);
         }
         
-        // Function to generate a random color for the chart lines
-        function getRandomColor() {
-            const letters = '0123456789ABCDEF';
-            let color = '#';
-            for (let i = 0; i < 6; i++) {
-                color += letters[Math.floor(Math.random() * 16)];
+        // Function to create custom legend
+        function createCustomLegend(chart) {
+            const legendContainer = document.getElementById('custom-legend');
+            legendContainer.innerHTML = ''; // Clear container before updating
+            
+            const datasets = chart.data.datasets;
+            
+            datasets.forEach((dataset, index) => {
+                const legendItem = document.createElement('div');
+                legendItem.classList.add('custom-legend-item');
+                if (dataset.hidden) {
+                    legendItem.classList.add('hidden');
+                }
+                
+                const colorBox = document.createElement('div');
+                colorBox.classList.add('custom-legend-color');
+                colorBox.style.backgroundColor = dataset.borderColor;
+                
+                const labelText = document.createElement('div');
+                labelText.classList.add('custom-legend-label');
+                labelText.textContent = dataset.label;
+                
+                legendItem.appendChild(colorBox);
+                legendItem.appendChild(labelText);
+                
+                // Add click handler
+                legendItem.addEventListener('click', (e) => {
+                    const isShiftPressed = e.shiftKey;
+                    
+                    if (isShiftPressed) {
+                        // Shift key pressed: Standard behavior (toggle one dataset)
+                        datasets[index].hidden = !datasets[index].hidden;
+                    } else {
+                                                            // Check if this chart is the only one currently visible
+                                    const isCurrentlyOnlyVisible = datasets.every((dataset, i) => 
+                                        i === index ? !dataset.hidden : dataset.hidden);
+                                    
+                                    if (isCurrentlyOnlyVisible) {
+                                        // If this is a second click on the same item, show all charts
+                                        datasets.forEach(dataset => {
+                                            dataset.hidden = false;
+                                        });
+                                    } else {
+                                        // First click - show only the selected chart
+                                        datasets.forEach((dataset, i) => {
+                                            dataset.hidden = i !== index;
+                                        });
+                        }
+                    }
+                    
+                    chart.update();
+                    createCustomLegend(chart); // Update legend view after changes
+                });
+                
+                legendContainer.appendChild(legendItem);
+            });
+        }
+        
+        // Function to generate a deterministic color based on name hash
+        function getColorFromName(name) {
+            // Simple hash function
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = ((hash << 5) - hash) + name.charCodeAt(i);
+                hash = hash & hash; // Convert to 32bit integer
             }
-            return color;
+            
+            // Use hash to generate HSL color with good saturation and lightness
+            // This ensures colors are visually distinct but consistent for the same name
+            const hue = Math.abs(hash) % 360;
+            const saturation = 70 + (Math.abs(hash) % 30); // 70-100%
+            const lightness = 45 + (Math.abs(hash) % 10);  // 45-55%
+            
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         }
     </script>
 </body>
