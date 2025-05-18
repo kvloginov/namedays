@@ -666,6 +666,7 @@
                 let relativesScoreSum = 0; // Initialize relatives score sum
                 let isTodayNameday = false; // For the main person
                 const includeRelativesChecked = document.getElementById('include-relatives-checkbox').checked;
+                let todayRelativesScore = 0; // Initialize today's relatives score
                 
                 dates.forEach(dateStr => {
                     let dailyScore = 0;
@@ -710,6 +711,11 @@
                     cumulativeSum += dailyScore;
                     relativesScoreSum += dailyRelativesScore; // Accumulate relatives score
                     nameData.data.push(cumulativeSum);
+
+                    // Store today's relatives score if this is today
+                    if (dateStr === currentDateStr) {
+                        todayRelativesScore = dailyRelativesScore;
+                    }
                 });
                 
                 datasets.push(nameData);
@@ -719,7 +725,8 @@
                     name: name, // Main person's combined name
                     count: cumulativeSum,
                     relativesScore: relativesScoreSum, // Add relatives score to ranking data
-                    isTodayNameday: isTodayNameday // Based on main person's nameday
+                    isTodayNameday: isTodayNameday, // Based on main person's nameday
+                    todayRelativesScore: todayRelativesScore // Score from relatives today
                 });
             });
             
@@ -737,8 +744,10 @@
                 nameCell.textContent = item.name;
                 
                 const countCell = document.createElement('td');
-                if (item.isTodayNameday) {
-                    countCell.textContent = `${item.count} (Сегодня +${item.count - (rankingData.find(r => r.name === item.name && r.isTodayNameday === false)?.count || item.count - 1)})`; // more precise today's gain
+                if (item.isTodayNameday || item.todayRelativesScore > 0) {
+                    // Calculate total today's gain including relatives
+                    const todayGain = (item.isTodayNameday ? 1 : 0) + item.todayRelativesScore;
+                    countCell.textContent = `${item.count} (Сегодня +${todayGain})`;
                     countCell.classList.add('today-nameday');
                 } else {
                     countCell.textContent = item.count;
@@ -747,7 +756,12 @@
                 const relativesScoreCell = document.createElement('td');
                 // Get the checkbox state directly here as it's outside generateChart's direct scope for this part
                 const isRelativesIncluded = document.getElementById('include-relatives-checkbox').checked;
-                relativesScoreCell.textContent = isRelativesIncluded ? item.relativesScore : 0;
+                if (isRelativesIncluded && item.todayRelativesScore > 0) {
+                    relativesScoreCell.textContent = `${item.relativesScore} (Сегодня +${item.todayRelativesScore})`;
+                    relativesScoreCell.classList.add('today-nameday');
+                } else {
+                    relativesScoreCell.textContent = isRelativesIncluded ? item.relativesScore : 0;
+                }
                 
                 row.appendChild(nameCell);
                 row.appendChild(countCell);
