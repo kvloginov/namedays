@@ -653,13 +653,14 @@
                 const nameData = {
                     label: name, // Use person's combined name for the dataset label
                     data: [],
-                    borderColor: getRandomColor(),
-                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                    borderColor: getColorFromName(name),
+                    backgroundColor: getColorFromName(name),
                     tension: 0.4,
                     pointRadius: 0, // Remove points
                     pointHoverRadius: 0, // Points don't appear and don't show on hover
                     borderWidth: 2, // Standard line thickness
-                    hoverBorderWidth: 4 // Line thickness on hover
+                    hoverBorderWidth: 4, // Line thickness on hover
+                    fill: false // Don't fill area under the line
                 };
                 
                 let cumulativeSum = 0;
@@ -887,6 +888,21 @@
                         },
                         legend: {
                             position: 'top',
+                            labels: {
+                                usePointStyle: false,
+                                boxWidth: 40,
+                                boxHeight: 3,
+                                generateLabels: function(chart) {
+                                    const originalLabels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    originalLabels.forEach(label => {
+                                        // Use border color for the line, same as in the chart
+                                        label.fillStyle = label.strokeStyle;
+                                        // Make legend line appear the same as in the chart
+                                        label.lineWidth = 2;
+                                    });
+                                    return originalLabels;
+                                }
+                            }
                         }
                     },
                     scales: {
@@ -925,14 +941,22 @@
             loadingEl.style.display = 'none';
         }
         
-        // Function to generate a random color for the chart lines
-        function getRandomColor() {
-            const letters = '0123456789ABCDEF';
-            let color = '#';
-            for (let i = 0; i < 6; i++) {
-                color += letters[Math.floor(Math.random() * 16)];
+        // Function to generate a deterministic color based on name hash
+        function getColorFromName(name) {
+            // Simple hash function
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = ((hash << 5) - hash) + name.charCodeAt(i);
+                hash = hash & hash; // Convert to 32bit integer
             }
-            return color;
+            
+            // Use hash to generate HSL color with good saturation and lightness
+            // This ensures colors are visually distinct but consistent for the same name
+            const hue = Math.abs(hash) % 360;
+            const saturation = 70 + (Math.abs(hash) % 30); // 70-100%
+            const lightness = 45 + (Math.abs(hash) % 10);  // 45-55%
+            
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         }
     </script>
 </body>
